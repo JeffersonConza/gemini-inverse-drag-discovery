@@ -13,21 +13,21 @@
 
 ---
 
-## 📌 Visión del Proyecto
+## Visión del Proyecto
 
-**Inverse Drag Discovery** es un marco de trabajo de **Scientific Machine Learning (SciML)** diseñado para el descubrimiento automatizado de parámetros físicos en sistemas dinámicos no lineales. El proyecto utiliza **Physics-Informed Neural Networks (PINNs)** para identificar el coeficiente de arrastre ($C_d$) y la masa ($m$) de un vehículo suborbital a partir de telemetría ruidosa, integrando las leyes de la cinemática directamente en el grafo de computación de la red neuronal.
-
----
-
-## 🔬 El Problema Inverso
-
-En la ingeniería aeroespacial, la identificación de parámetros es un **problema inverso** clásico: dada una trayectoria observada $\mathbf{s}_{obs}(t)$, ¿cuáles son las constantes físicas que mejor explican ese movimiento? 
-
-Este desafío se ve agravado por el **ruido instrumental** (IMUs y GPS comerciales) y la **densidad atmosférica variable**, lo que hace que los métodos de regresión tradicionales fallen. Nuestra PINN resuelve esto optimizando simultáneamente los pesos de la red y los parámetros físicos, utilizando las Ecuaciones Diferenciales Ordinarias (EDOs) como un regularizador soberano.
+Inverse Drag Discovery es un marco de trabajo de Scientific Machine Learning (SciML) diseñado para el descubrimiento automatizado de parámetros físicos en sistemas dinámicos no lineales. El proyecto utiliza Physics-Informed Neural Networks (PINNs) para identificar el coeficiente de arrastre ($C_d$) y la masa ($m$) de un vehículo suborbital a partir de telemetría ruidosa, integrando las leyes de la cinemática directamente en el grafo de computación de la red neuronal.
 
 ---
 
-## 🧠 Fundamentación Matemática
+## El Problema Inverso
+
+En la ingeniería aeroespacial, la identificación de parámetros es un problema inverso clásico: dada una trayectoria observada $\mathbf{s}_{obs}(t)$, ¿cuáles son las constantes físicas que mejor explican ese movimiento? 
+
+Este desafío se ve agravado por el ruido instrumental (IMUs y GPS comerciales) y la densidad atmosférica variable, lo que hace que los métodos de regresión tradicionales fallen. Nuestra PINN resuelve esto optimizando simultáneamente los pesos de la red y los parámetros físicos, utilizando las Ecuaciones Diferenciales Ordinarias (EDOs) como un regularizador soberano.
+
+---
+
+## Fundamentación Matemática
 
 ### Dinámica del Vehículo (EDOs)
 El sistema resuelve el siguiente conjunto de EDOs acopladas que describen la balística con empuje y arrastre:
@@ -49,12 +49,12 @@ $$F_d = \frac{1}{2} \rho_0 e^{-y/H} \|\mathbf{v}\|^2 C_d A$$
 La red se entrena minimizando un funcional de pérdida compuesto:
 $$\mathcal{L} = \mathcal{L}_{data} + \lambda \mathcal{L}_{physics}$$
 
-Donde $\mathcal{L}_{physics}$ representa el residuo de las EDOs calculado mediante **Diferenciación Automática (Autograd)**:
+Donde $\mathcal{L}_{physics}$ representa el residuo de las EDOs calculado mediante Diferenciación Automática (Autograd):
 $$\mathcal{L}_{physics} = \frac{1}{N} \sum_{i=1}^N \left\| \frac{d\hat{\mathbf{s}}}{dt} - f(t, \hat{\mathbf{s}}, C_d, m) \right\|^2$$
 
 ---
 
-## 📊 Resultados y Visualización
+## Resultados y Visualización
 
 ### Convergencia de Parámetros
 La animación muestra cómo la PINN ajusta la trayectoria mientras descubre los valores reales de $C_d$ y Masa. A medida que las épocas avanzan, la predicción "ancla" la física a los datos ruidosos.
@@ -72,28 +72,39 @@ Tras el entrenamiento, se observa un ajuste de alta fidelidad tanto en altitud c
 
 ---
 
-## 🤖 Auditoría de IA (Gemini CLI)
+## Auditoría de IA (Gemini CLI)
 
-El sistema incluye una fase de auditoría automatizada. Según el reporte generado en `docs/reporte_cd.txt`:
-*   **Identificación de Drag:** La IA confirmó una deceleración no lineal tras los 85s (fase de descenso), indicando una "huella digital" clara de la resistencia atmosférica.
-*   **Veredicto Técnico:** Los datos presentan suficiente varianza para que la PINN logre "aislar" el coeficiente de arrastre del término gravitatorio, validando el enfoque SciML.
+El sistema incluye una fase de auditoría automatizada. Según el reporte generado en docs/reporte_cd.txt:
+*   Identificación de Drag: La IA confirmó una deceleración no lineal tras los 85s (fase de descenso), indicando una "huella digital" clara de la resistencia atmosférica.
+*   Veredicto Técnico: Los datos presentan suficiente varianza para que la PINN logre "aislar" el coeficiente de arrastre del término gravitatorio, validando el enfoque SciML.
 
 ---
 
-## 🛠️ Guía de Ejecución
+## Guía de Ejecución
 
 ### Configuración del Entorno
+La preparación del sistema requiere la inicialización de un entorno virtual y la instalación de las dependencias de cómputo científico especificadas:
 ```bash
-# Crear y activar venv
 python3 -m venv venv
 source venv/bin/activate
-
-# Instalar dependencias
 pip install -r requirements.txt
 ```
 
-### Pipeline de Operaciones
-Para ejecutar la simulación completa, el entrenamiento de la PINN y la auditoría de IA:
+### Protocolos de Operación
+
+#### Método Manual
+Este procedimiento permite la ejecución desacoplada de los módulos para una inspección detallada de las etapas de procesamiento:
+1. Generación de telemetría sintética con ruido instrumental:
+   ```bash
+   python3 src/simulador.py
+   ```
+2. Entrenamiento de la red neuronal e identificación de parámetros físicos:
+   ```bash
+   python3 src/pinn_cd.py
+   ```
+
+#### Método Automatizado
+El repositorio incluye un script de orquestación para la ejecución integral del pipeline. Este comando automatiza la simulación, el entrenamiento del modelo y la auditoría técnica por inteligencia artificial:
 ```bash
 chmod +x cli/generar_reporte.sh
 ./cli/generar_reporte.sh

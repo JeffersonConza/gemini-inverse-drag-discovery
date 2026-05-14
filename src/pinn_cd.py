@@ -80,7 +80,9 @@ if __name__ == "__main__":
     model = PINN_Drag()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     
+    plt.style.use('seaborn-v0_8-darkgrid')
     frames = [] # Almacén para el GIF
+    loss_history = []
     epochs = 3000
     
     pbar = tqdm(range(epochs), desc="Entrenando PINN")
@@ -93,6 +95,7 @@ if __name__ == "__main__":
         loss_data = nn.MSELoss()(state_pred_norm, state_data_norm)
         loss_physics = physical_loss(t_data, state_pred, model.cd, model.masa)
         loss = loss_data + (1e-5 * loss_physics)
+        loss_history.append(loss.item())
         
         loss.backward()
         optimizer.step()
@@ -107,32 +110,40 @@ if __name__ == "__main__":
         # Capturar frame cada 100 épocas
         if epoch % 100 == 0 or epoch == epochs - 1:
             with torch.no_grad():
-                # Visualización para el frame
                 t_num = t_data.detach().numpy()
-                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
                 
-                # Plot Altitud
-                ax1.plot(t_num, state_data[:, 1], 'k', alpha=0.2, label="Telemetría Ruidosa")
-                ax1.plot(t_num, state_pred[:, 1], 'b', linewidth=2, label="Predicción PINN")
-                ax1.set_title(f"Convergencia Altitud (Epoch {epoch})")
-                ax1.legend()
+                # Título dinámico profesional
+                fig.suptitle(f"Entrenamiento PINN | Epoch: {epoch:04d} | Loss: {loss.item():.2e}\n"
+                             f"Parámetros Descubiertos: Cd = {model.cd.item():.4f} | Masa = {model.masa.item():.1f}kg", 
+                             fontsize=13, fontweight='bold', y=0.98)
                 
-                # Plot Velocidad y Parámetros
-                ax2.plot(t_num, state_data[:, 3], 'k', alpha=0.2)
-                ax2.plot(t_num, state_pred[:, 3], 'r', linewidth=2)
-                ax2.set_title(f"Cd: {model.cd.item():.3f} | Masa: {model.masa.item():.1f}kg")
+                # Panel Izquierdo: Trayectoria (Altitud)
+                ax1.plot(t_num, state_data[:, 1], color='gray', linestyle='--', alpha=0.4, label="Telemetría (Ruido)")
+                ax1.plot(t_num, state_pred[:, 1], color='#1f77b4', linewidth=3, label="Predicción PINN")
+                ax1.set_xlabel("Tiempo (s)")
+                ax1.set_ylabel("Altitud (m)")
+                ax1.set_title("Ajuste de Trayectoria")
+                ax1.legend(loc='upper right')
                 
-                plt.tight_layout()
+                # Panel Derecho: Loss Curve (Escala Logarítmica)
+                ax2.plot(range(len(loss_history)), loss_history, color='#d62728', linewidth=1.5)
+                ax2.set_yscale('log')
+                ax2.set_xlabel("Epoch")
+                ax2.set_ylabel("Total Loss")
+                ax2.set_title("Convergencia (Log Loss)")
+                
+                plt.tight_layout(rect=[0, 0.03, 1, 0.92])
                 
                 # Guardar frame en buffer de memoria
                 buf = io.BytesIO()
-                plt.savefig(buf, format='png', dpi=80)
+                plt.savefig(buf, format='png', dpi=120)
                 buf.seek(0)
                 frames.append(imageio.v2.imread(buf))
                 plt.close(fig)
             
     print(f"\n🎬 Compilando animación final...")
-    imageio.mimsave('docs/convergencia.gif', frames, fps=10)
+    imageio.mimsave('docs/convergencia.gif', frames, fps=6, loop=0)
     print(f"✅ Animación guardada en docs/convergencia.gif ({len(frames)} frames)")
     
     # Guardar última imagen estática de alta calidad
@@ -140,17 +151,23 @@ if __name__ == "__main__":
         state_final_pred = (model(t_data) * state_std + state_mean).cpu().numpy()
         t_final_np = t_data.detach().cpu().numpy()
 
-    plt.figure(figsize=(14, 6))
-    plt.subplot(1, 2, 1)
-    plt.plot(t_final_np, state_data[:, 1], 'k', alpha=0.3, label="Telemetría")
-    plt.plot(t_final_np, state_final_pred[:, 1], 'b', label="Predicción PINN")
-    plt.title("Ajuste Final de Altitud")
-    plt.legend()
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
+    
+    # Altitud Final
+    ax1.plot(t_final_np, state_data[:, 1], color='gray', alpha=0.3, label="Telemetría")
+    ax1.plot(t_final_np, state_final_pred[:, 1], color='#1f77b4', linewidth=2.5, label="Predicción PINN")
+    ax1.set_title("Ajuste Final de Altitud", fontsize=12, fontweight='bold')
+    ax1.set_xlabel("Tiempo (s)")
+    ax1.set_ylabel("Altitud (m)")
+    ax1.legend()
 
-    plt.subplot(1, 2, 2)
-    plt.plot(t_final_np, state_data[:, 3], 'k', alpha=0.3)
-    plt.plot(t_final_np, state_final_pred[:, 3], 'r')
-    plt.title(f"Resultado Final: Cd={model.cd.item():.3f} | Masa={model.masa.item():.1f}kg")
+    # Velocidad Final
+    ax2.plot(t_final_np, state_data[:, 3], color='gray', alpha=0.3)
+    ax2.plot(t_final_np, state_final_pred[:, 3], color='#d62728', linewidth=2.5)
+    ax2.set_title(f"Resultado Final: Cd = {model.cd.item():.3f} | Masa = {model.masa.item():.1f}kg", 
+                  fontsize=12, fontweight='bold')
+    ax2.set_xlabel("Tiempo (s)")
+    ax2.set_ylabel("Velocidad Vertical (m/s)")
     
     plt.tight_layout()
     plt.savefig('docs/comparativa_pinn.png', dpi=300)
