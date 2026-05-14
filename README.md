@@ -1,81 +1,101 @@
-# Inverse Drag Discovery: Physics-Informed Neural Networks for Parameter Identification
+# Inverse Drag Discovery 🚀
+### Physics-Informed Machine Learning for Aerospace Parameter Identification
 
-Este repositorio contiene una implementación de **Physics-Informed Neural Networks (PINNs)** para resolver un problema inverso en la dinámica de vuelo suborbital: la identificación del coeficiente de arrastre ($C_d$) y la masa ($m$) de un vehículo a partir de telemetría ruidosa.
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![SciML](https://img.shields.io/badge/SciML-FF6F00?style=for-the-badge)
+![Mathematics](https://img.shields.io/badge/Applied%20Math-003153?style=for-the-badge)
+![Aerospace](https://img.shields.io/badge/Aerospace-Dynamics-blue?style=for-the-badge)
+![Gemini CLI](https://img.shields.io/badge/Gemini%20CLI-4285F4?style=for-the-badge&logo=google-gemini&logoColor=white)
+![License MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
-## 1. Resumen del Problema Inverso
+---
 
-En la ingeniería aeroespacial, determinar las características aerodinámicas reales a partir de datos de vuelo es crítico. Este proyecto aborda la recuperación de parámetros físicos ocultos mediante la integración de leyes físicas fundamentales en el proceso de optimización de una red neuronal. A diferencia de un enfoque de regresión tradicional, la PINN actúa como un regularizador basado en la física, permitiendo descubrir constantes como el $C_d$ incluso cuando los datos observados presentan ruido instrumental significativo.
+## 📌 Visión del Proyecto
 
-## 2. Dinámica del Sistema y Ecuaciones Diferenciales
+**Inverse Drag Discovery** es un marco de trabajo de **Scientific Machine Learning (SciML)** diseñado para el descubrimiento automatizado de parámetros físicos en sistemas dinámicos no lineales. El proyecto utiliza **Physics-Informed Neural Networks (PINNs)** para identificar el coeficiente de arrastre ($C_d$) y la masa ($m$) de un vehículo suborbital a partir de telemetría ruidosa, integrando las leyes de la cinemática directamente en el grafo de computación de la red neuronal.
 
-El movimiento del vehículo se modela mediante un sistema de Ecuaciones Diferenciales Ordinarias (EDOs) en 2D, considerando un empuje constante, gravedad y arrastre aerodinámico en una atmósfera exponencial.
+---
 
-Sea el vector de estado $\mathbf{s} = [x, y, v_x, v_y]^T$, la dinámica está gobernada por:
+## 🔬 El Problema Inverso
+
+En la ingeniería aeroespacial, la identificación de parámetros es un **problema inverso** clásico: dada una trayectoria observada $\mathbf{s}_{obs}(t)$, ¿cuáles son las constantes físicas que mejor explican ese movimiento? 
+
+Este desafío se ve agravado por el **ruido instrumental** (IMUs y GPS comerciales) y la **densidad atmosférica variable**, lo que hace que los métodos de regresión tradicionales fallen. Nuestra PINN resuelve esto optimizando simultáneamente los pesos de la red y los parámetros físicos, utilizando las Ecuaciones Diferenciales Ordinarias (EDOs) como un regularizador soberano.
+
+---
+
+## 🧠 Fundamentación Matemática
+
+### Dinámica del Vehículo (EDOs)
+El sistema resuelve el siguiente conjunto de EDOs acopladas que describen la balística con empuje y arrastre:
 
 $$
-\begin{aligned}
-\frac{dx}{dt} &= v_x \\
-\frac{dy}{dt} &= v_y \\
-\frac{dv_x}{dt} &= \frac{1}{m} \left( T \cos(\theta) - F_d \frac{v_x}{\|\mathbf{v}\|} \right) \\
-\frac{dv_y}{dt} &= \frac{1}{m} \left( T \sin(\theta) - F_d \frac{v_y}{\|\mathbf{v}\|} \right) - g
-\end{aligned}
+\frac{d}{dt} \begin{bmatrix} x \\ y \\ v_x \\ v_y \end{bmatrix} = 
+\begin{bmatrix} 
+v_x \\ 
+v_y \\ 
+\frac{T \cos(\theta) - F_{d,x}}{m} \\ 
+\frac{T \sin(\theta) - F_{d,y}}{m} - g 
+\end{bmatrix}
 $$
 
-Donde la fuerza de arrastre ($F_d$) y la densidad atmosférica ($\rho$) se definen como:
+Donde la fuerza de arrastre aerodinámico $F_d$ sigue el modelo de densidad exponencial:
+$$F_d = \frac{1}{2} \rho_0 e^{-y/H} \|\mathbf{v}\|^2 C_d A$$
 
-$$
-F_d = \frac{1}{2} \rho(y) \|\mathbf{v}\|^2 C_d A, \quad \rho(y) = \rho_0 e^{-y/H}
-$$
+### Physics-Informed Loss
+La red se entrena minimizando un funcional de pérdida compuesto:
+$$\mathcal{L} = \mathcal{L}_{data} + \lambda \mathcal{L}_{physics}$$
 
-- $T$: Empuje (Thrust).
-- $\theta$: Ángulo de vuelo (Gravity turn perfilado).
-- $A$: Área de referencia.
-- $\rho_0$: Densidad al nivel del mar.
-- $H$: Altura de escala.
+Donde $\mathcal{L}_{physics}$ representa el residuo de las EDOs calculado mediante **Diferenciación Automática (Autograd)**:
+$$\mathcal{L}_{physics} = \frac{1}{N} \sum_{i=1}^N \left\| \frac{d\hat{\mathbf{s}}}{dt} - f(t, \hat{\mathbf{s}}, C_d, m) \right\|^2$$
 
-## 3. Arquitectura de la PINN
+---
 
-La arquitectura consiste en un Perceptrón Multicapa (MLP) que aproxima la solución del sistema dinámico $t \to \hat{\mathbf{s}}(t)$.
+## 📊 Resultados y Visualización
 
-- **Arquitectura de la Red**: 1 entrada ($t$), 2 capas ocultas de 64 neuronas con activación `Tanh`, y 4 salidas ($x, y, v_x, v_y$).
-- **Parámetros Aprendibles**: Además de los pesos de la red, el modelo optimiza directamente los parámetros físicos $\theta_{phys} = \{C_d, m\}$.
-- **Función de Pérdida Multiobjetivo**:
-  $$\mathcal{L} = \mathcal{L}_{data} + \lambda \mathcal{L}_{physics}$$
-  Donde $\mathcal{L}_{data}$ es el error cuadrático medio respecto a la telemetría y $\mathcal{L}_{physics}$ es el residuo de las EDOs evaluado mediante diferenciación automática (Autograd).
+### Convergencia de Parámetros
+La animación muestra cómo la PINN ajusta la trayectoria mientras descubre los valores reales de $C_d$ y Masa. A medida que las épocas avanzan, la predicción "ancla" la física a los datos ruidosos.
 
-## 4. Estructura del Proyecto
+<p align="center">
+  <img src="docs/convergencia.gif" alt="Convergencia PINN" width="800"/>
+</p>
 
-- `src/simulador.py`: Generador de telemetría sintética con ruido gaussiano utilizando integración RK4.
-- `src/integrador.py`: Implementación del método de Runge-Kutta de 4º orden y definición de las EDOs.
-- `src/pinn_cd.py`: Core del proyecto. Implementación de la PINN en PyTorch, bucle de entrenamiento y visualización.
-- `cli/generar_reporte.sh`: Pipeline MLOps para simulación y auditoría de datos.
+### Comparativa Final
+Tras el entrenamiento, se observa un ajuste de alta fidelidad tanto en altitud como en velocidad, filtrando el ruido instrumental de manera efectiva.
 
-## 5. Instrucciones de Ejecución
+<p align="center">
+  <img src="docs/comparativa_pinn.png" alt="Ajuste Final" width="800"/>
+</p>
 
-### Pre-requisitos
-Asegúrese de tener un entorno virtual configurado e instalar las dependencias:
+---
+
+## 🤖 Auditoría de IA (Gemini CLI)
+
+El sistema incluye una fase de auditoría automatizada. Según el reporte generado en `docs/reporte_cd.txt`:
+*   **Identificación de Drag:** La IA confirmó una deceleración no lineal tras los 85s (fase de descenso), indicando una "huella digital" clara de la resistencia atmosférica.
+*   **Veredicto Técnico:** Los datos presentan suficiente varianza para que la PINN logre "aislar" el coeficiente de arrastre del término gravitatorio, validando el enfoque SciML.
+
+---
+
+## 🛠️ Guía de Ejecución
+
+### Configuración del Entorno
 ```bash
+# Crear y activar venv
 python3 -m venv venv
 source venv/bin/activate
+
+# Instalar dependencias
 pip install -r requirements.txt
 ```
 
-### Flujo de Trabajo
-1. **Generar Datos de Vuelo**:
-   ```bash
-   python3 src/simulador.py --masa 500 --cd 0.3 --salida data/vuelo.csv
-   ```
-
-2. **Entrenar PINN y Descubrir Parámetros**:
-   ```bash
-   python3 src/pinn_cd.py
-   ```
-   Durante el entrenamiento, podrá observar la convergencia de $C_d$ y la masa en tiempo real. Al finalizar, se generará una animación en `docs/convergencia.gif` y una comparativa estática en `docs/comparativa_pinn.png`.
-
-3. **Ejecutar Pipeline Completo**:
-   ```bash
-   bash cli/generar_reporte.sh
-   ```
+### Pipeline de Operaciones
+Para ejecutar la simulación completa, el entrenamiento de la PINN y la auditoría de IA:
+```bash
+chmod +x cli/generar_reporte.sh
+./cli/generar_reporte.sh
+```
 
 ---
-**Investigación SciML** | Desarrollado para el descubrimiento automatizado de leyes físicas.
+**Jefferson Conza**  
+*Mathematics Student | ML Engineer*
