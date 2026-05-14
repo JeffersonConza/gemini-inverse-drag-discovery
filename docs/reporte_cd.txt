@@ -1,0 +1,16 @@
+El análisis de los datos contenidos en `data/vuelo.csv` confirma que la curva de velocidad vertical (`vy`) presenta características ideales para un enfoque de **SciML (Scientific Machine Learning)** mediante una **PINN (Physics-Informed Neural Network)**.
+
+### Reporte de Análisis: Descubrimiento de Coeficiente de Arrastre
+
+**1. Identificación de Efectos de Arrastre (Drag):**
+Al observar la columna `vy` en relación con el tiempo `t`, se identifican desviaciones significativas de un movimiento parabólico ideal (caída libre sin aire):
+*   **Fase de Descenso (t > 60s):** En una caída sin resistencia, la velocidad debería aumentar linealmente ($v_y = v_0 - gt$). Sin embargo, los datos muestran que tras alcanzar una velocidad máxima de descenso de aproximadamente **-68.6 m/s** (alrededor de $t=85s$), el objeto comienza a **decelerarse** (su velocidad se vuelve menos negativa), llegando a **-55.8 m/s** cerca de $t=150s$.
+*   **Velocidad Terminal Dinámica:** Esta deceleración mientras el objeto aún cae (la altitud `y` disminuye de ~5300m a ~1200m) es una evidencia clásica de un aumento en la fuerza de arrastre, posiblemente debido al incremento en la densidad del aire a menores altitudes.
+
+**2. Varianza No Lineal y Calidad de los Datos:**
+*   **Régimen No Lineal:** La transición entre la fase de ascenso, el pico de altura y el alcance de una velocidad terminal variable proporciona una rica información sobre la dinámica del sistema. La relación entre aceleración ($a_y$) y velocidad ($v_y^2$ para arrastre cuadrático) no es constante, lo que permite a la PINN "aislar" el coeficiente de arrastre del término gravitatorio.
+*   **Presencia de Ruido:** Se observa un ligero jitter o ruido en los valores de `vy` (por ejemplo, fluctuaciones entre -68.1 y -68.6 m/s en la fase de alta velocidad). Esto no es un impedimento, sino una oportunidad: las PINN actúan como filtros de ruido naturales al imponer restricciones físicas, lo que facilitará el descubrimiento de un coeficiente de arrastre robusto frente a datos experimentales imperfectos.
+
+### Conclusión para Entrenamiento SciML
+Los datos tienen **suficiente varianza y complejidad no lineal**. El comportamiento de la velocidad en el último tercio del vuelo es la "huella digital" del arrastre atmosférico. Se recomienda proceder con el entrenamiento de la PINN, utilizando la ley de Newton como regularizador ($m\dot{v} = -mg - k|v|v$) para descubrir el parámetro desconocido $k$.
+
