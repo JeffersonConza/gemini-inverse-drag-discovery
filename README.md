@@ -1,4 +1,7 @@
 # Inverse Drag Discovery 🚀
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/JeffersonConza/gemini-inverse-drag-discovery/blob/main/inverse_drag_colab.ipynb)
+
 ### Physics-Informed Machine Learning for Aerospace Parameter Identification
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
